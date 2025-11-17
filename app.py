@@ -1,4 +1,5 @@
-# Using threading mode - no monkey patching needed
+import eventlet
+eventlet.monkey_patch()
 
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit
@@ -12,7 +13,7 @@ from urltest import run_selenium_tests
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'selenium-test-secret-key-super-secure'
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 # Global flags
 test_running = False
@@ -147,4 +148,4 @@ if __name__ == "__main__":
     import os
     port = int(os.getenv("PORT", 5000))
     print(f"Starting SocketIO server on port {port}")
-    socketio.run(app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=port, debug=False)

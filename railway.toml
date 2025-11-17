@@ -1,3 +1,4 @@
 [variables]
 PYTHON_VERSION = "3.10"
 WEB_CONCURRENCY = "1"
+BROWSERLESS_KEY = "dummy_key_for_local_chrome"
