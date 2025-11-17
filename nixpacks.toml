@@ -1,11 +1,11 @@
+[build]
+builder = "nixpacks"
+
 [phases.setup]
-nixPkgs = ['...', 'chromium', 'chromedriver']
+nixPkgs = ["python3", "chromium", "chromiumDriver"]
 
 [phases.install]
-dependsOn = ['setup']
-
-[phases.build]
-dependsOn = ['install']
+commands = ["pip install -r requirements.txt"]
 
 [start]
-cmd = 'python app.py'
+cmd = "bash start.sh"

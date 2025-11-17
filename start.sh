@@ -1,8 +1,9 @@
 #!/bin/bash
+export PATH=$PATH:/nix/store
+export CHROME_BIN=$(which chromium)
+export CHROMEDRIVER_PATH=$(which chromedriver)
 
-# Start Xvfb (virtual display)
-export DISPLAY=:99
-Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+echo "Chrome located at: $CHROME_BIN"
+echo "Chromedriver located at: $CHROMEDRIVER_PATH"
 
-# Start the Flask app
-python app.py
+python3 app.py
