@@ -1,2 +1,3 @@
 #!/bin/bash
-python3 app.py
+#!/bin/bash
+gunicorn app:app --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT

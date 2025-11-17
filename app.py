@@ -9,15 +9,13 @@ from urltest import run_selenium_tests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'selenium-test-secret-key-super-secure'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
-# Global variables
+# Global flags
 test_running = False
 stop_requested = False
 
 
-
-# Database initialization
 def init_db():
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
@@ -28,124 +26,119 @@ def init_db():
             password TEXT NOT NULL
         )
     ''')
-    
-    # Check if admin user exists
     cursor.execute('SELECT * FROM users WHERE username = ?', ('admin',))
     if not cursor.fetchone():
-        # Hash the password
-        hashed_password = hashlib.sha256('admin'.encode()).hexdigest()
-        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', 
-                      ('admin', hashed_password))
-    
+        hashed = hashlib.sha256('admin'.encode()).hexdigest()
+        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)',
+                       ('admin', hashed))
     conn.commit()
     conn.close()
 
-# Initialize database on startup
+
 init_db()
 
-# Login required decorator
+
 def login_required(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def wrap(*args, **kwargs):
         if 'logged_in' not in session:
             return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return decorated_function
+    return wrap
 
-def emit_log(message, level="info"):
-    """Emit log message to frontend"""
+
+def emit_log(msg, level="info"):
     timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-    socketio.emit('log', {
-        'timestamp': timestamp,
-        'level': level,
-        'message': message
+    socketio.emit("log", {
+        "timestamp": timestamp,
+        "level": level,
+        "message": msg
     })
 
-def run_tests_wrapper():
-    """Wrapper function to run tests with global state management"""
+
+def test_thread():
     global test_running, stop_requested
-    
     try:
         run_selenium_tests(socketio, emit_log)
     finally:
         test_running = False
         stop_requested = False
 
+
 @app.route('/')
 def index():
-    if 'logged_in' not in session:
-        return redirect(url_for('login'))
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('dashboard') if 'logged_in' in session else 'login')
+
+
+@app.route('/health')
+def health():
+    return "OK"
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if 'logged_in' in session:
         return redirect(url_for('dashboard'))
-    
+
     error = None
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # Hash the input password
-        hashed_password = hashlib.sha256(password.encode()).hexdigest()
-        
-        # Check credentials
+        user = request.form.get("username")
+        pwd = hashlib.sha256(request.form.get("password").encode()).hexdigest()
+
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', 
-                      (username, hashed_password))
-        user = cursor.fetchone()
+        cursor.execute('SELECT * FROM users WHERE username=? AND password=?', (user, pwd))
+        found = cursor.fetchone()
         conn.close()
-        
-        if user:
+
+        if found:
             session['logged_in'] = True
-            session['username'] = username
+            session['username'] = user
             return redirect(url_for('dashboard'))
         else:
-            error = 'Invalid credentials'
-    
+            error = "Invalid username or password"
+
     return render_template('login.html', error=error)
+
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
     return render_template('dashboard.html', username=session.get('username'))
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
+
 @socketio.on('start_test')
-def handle_start_test():
+def start_test():
     global test_running, stop_requested
-    
-    if 'logged_in' not in session:
-        return
-    
+
     if test_running:
-        emit('error', {'message': 'Tests are already running'})
+        emit("error", {"message": "Tests are already running."})
         return
-    
+
     test_running = True
     stop_requested = False
-    
-    thread = threading.Thread(target=run_tests_wrapper)
-    thread.daemon = True
-    thread.start()
+
+    t = threading.Thread(target=test_thread)
+    t.daemon = True
+    t.start()
+
 
 @socketio.on('stop_test')
-def handle_stop_test():
+def stop_test():
     global stop_requested
-    
-    if 'logged_in' not in session:
-        return
-    
     stop_requested = True
-    emit_log("Stop requested, waiting for current test to finish...", "warning")
+    emit_log("Stop request received. Test will stop after current URL.", "warning")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
+    import eventlet
     import os
-    port = int(os.environ.get('PORT', 5000))
-    socketio.run(app, debug=False, host='0.0.0.0', port=port)
+    port = int(os.getenv("PORT", 5000))
+    eventlet.monkey_patch()
+    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
