@@ -9,7 +9,9 @@ from urltest import run_selenium_tests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'selenium-test-secret-key-super-secure'
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+
+# IMPORTANT: NO EVENTLET
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 # Global flags
 test_running = False
@@ -136,9 +138,9 @@ def stop_test():
     emit_log("Stop request received. Test will stop after current URL.", "warning")
 
 
+# IMPORTANT:
+# Do NOT run socketio.run when deploying to Gunicorn
 if __name__ == "__main__":
-    import eventlet
     import os
     port = int(os.getenv("PORT", 5000))
-    eventlet.monkey_patch()
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
