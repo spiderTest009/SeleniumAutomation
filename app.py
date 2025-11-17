@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit
 import threading
@@ -10,8 +13,7 @@ from urltest import run_selenium_tests
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'selenium-test-secret-key-super-secure'
 
-# IMPORTANT: NO EVENTLET
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 
 # Global flags
 test_running = False
@@ -123,6 +125,10 @@ def start_test():
         emit("error", {"message": "Tests are already running."})
         return
 
+    # Simple test without Selenium first
+    emit_log("Test started - checking connection...", "info")
+    emit_log("SocketIO connection working!", "success")
+    
     test_running = True
     stop_requested = False
 
@@ -138,9 +144,7 @@ def stop_test():
     emit_log("Stop request received. Test will stop after current URL.", "warning")
 
 
-# IMPORTANT:
-# Do NOT run socketio.run when deploying to Gunicorn
 if __name__ == "__main__":
     import os
     port = int(os.getenv("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)
