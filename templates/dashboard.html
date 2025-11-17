@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selenium Test Runner - H4CK3R Terminal</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #00ff41;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid #00ff41;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41;
+            animation: glitch 3s infinite;
+        }
+
+        .header .subtitle {
+            color: #0f0;
+            margin-top: 10px;
+            font-size: 1.1em;
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0); }
+            92% { transform: translate(-2px, 2px); }
+            94% { transform: translate(2px, -2px); }
+            96% { transform: translate(-2px, -2px); }
+        }
+
+
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: transparent;
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 15px 40px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            background: #00ff41;
+            color: #0a0e27;
+            box-shadow: 0 0 20px #00ff41;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-stop {
+            border-color: #ff0040;
+            color: #ff0040;
+        }
+
+        .btn-stop:hover {
+            background: #ff0040;
+            box-shadow: 0 0 20px #ff0040;
+        }
+
+        .terminal {
+            background: #000;
+            border: 2px solid #00ff41;
+            border-radius: 5px;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 30px;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+            position: relative;
+        }
+
+        .terminal::before {
+            content: '> TERMINAL OUTPUT';
+            position: sticky;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            background: #0a0e27;
+            padding: 10px 20px;
+            border-bottom: 1px solid #00ff41;
+            display: block;
+            margin: -20px -20px 20px -20px;
+            z-index: 10;
+        }
+
+        .terminal::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .terminal::-webkit-scrollbar-track {
+            background: #0a0e27;
+        }
+
+        .terminal::-webkit-scrollbar-thumb {
+            background: #00ff41;
+            border-radius: 5px;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .log-timestamp {
+            color: #666;
+            margin-right: 10px;
+        }
+
+        .log-info { color: #00ff41; }
+        .log-success { color: #0f0; }
+        .log-warning { color: #ffaa00; }
+        .log-error { color: #ff0040; }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid #00ff41;
+            border-radius: 5px;
+            padding: 15px;
+            transition: all 0.3s;
+            animation: slideIn 0.5s;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .result-card.pass {
+            border-color: #0f0;
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        .result-card.fail {
+            border-color: #ff0040;
+            background: rgba(255, 0, 64, 0.05);
+        }
+
+        .result-url {
+            font-size: 0.9em;
+            word-break: break-all;
+            margin-bottom: 10px;
+            color: #0ff;
+        }
+
+        .result-title {
+            color: #fff;
+            margin: 10px 0;
+            font-size: 0.95em;
+        }
+
+        .result-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .result-status.pass {
+            background: #0f0;
+            color: #000;
+        }
+
+        .result-status.fail {
+            background: #ff0040;
+            color: #fff;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid #00ff41;
+            border-radius: 5px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .stat-label {
+            margin-top: 5px;
+            opacity: 0.7;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            animation: pulse 1.5s infinite;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <div class="header">
+            <h1>⚡ SELENIUM TEST RUNNER ⚡</h1>
+            <div class="subtitle">[ Test Terminal Interface v1.0 ]</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="startBtn" onclick="startTest()">
+                ▶ START AUTOMATION
+            </button>
+            <button class="btn btn-stop" id="stopBtn" onclick="stopTest()" disabled>
+                ■ STOP EXECUTION
+            </button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" style="color: #0ff;" id="totalCount">0</div>
+                <div class="stat-label">TOTAL TESTS</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: #0f0;" id="passCount">0</div>
+                <div class="stat-label">PASSED</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" style="color: #ff0040;" id="failCount">0</div>
+                <div class="stat-label">FAILED</div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div style="font-size: 1.5em;">⚙️ RUNNING TESTS...</div>
+        </div>
+
+        <div class="terminal" id="terminal"></div>
+
+        <div class="results-grid" id="resultsGrid"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let passCount = 0;
+        let failCount = 0;
+        let totalCount = 0;
+
+        socket.on('log', function(data) {
+            const terminal = document.getElementById('terminal');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${data.level}`;
+            logEntry.innerHTML = `<span class="log-timestamp">[${data.timestamp}]</span>${data.message}`;
+            terminal.appendChild(logEntry);
+            terminal.scrollTop = terminal.scrollHeight;
+        });
+
+        socket.on('test_result', function(data) {
+            totalCount++;
+            if (data.status === 'pass') {
+                passCount++;
+            } else {
+                failCount++;
+            }
+
+            updateStats();
+
+            const resultsGrid = document.getElementById('resultsGrid');
+            const card = document.createElement('div');
+            card.className = `result-card ${data.status}`;
+            card.innerHTML = `
+                <div class="result-url">${data.url}</div>
+                <div class="result-title">📄 ${data.title}</div>
+                <div style="margin-top: 10px;">
+                    <span class="result-status ${data.status}">${data.status.toUpperCase()}</span>
+                    <span style="margin-left: 10px; color: #666;">Status: ${data.status_code || 'N/A'}</span>
+                </div>
+            `;
+            resultsGrid.insertBefore(card, resultsGrid.firstChild);
+        });
+
+        socket.on('test_complete', function() {
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('loading').classList.remove('active');
+        });
+
+        function startTest() {
+            passCount = 0;
+            failCount = 0;
+            totalCount = 0;
+            updateStats();
+
+            document.getElementById('terminal').innerHTML = '';
+            document.getElementById('resultsGrid').innerHTML = '';
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('loading').classList.add('active');
+
+            socket.emit('start_test');
+        }
+
+        function stopTest() {
+            socket.emit('stop_test');
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('passCount').textContent = passCount;
+            document.getElementById('failCount').textContent = failCount;
+        }
+    </script>
+</body>
+</html>
