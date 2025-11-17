@@ -308,7 +308,9 @@
     </div>
 
     <script>
-        const socket = io();
+        const socket = io({
+            transports: ["websocket"]
+        });
         let passCount = 0;
         let failCount = 0;
         let totalCount = 0;
