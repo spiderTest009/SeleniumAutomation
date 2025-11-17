@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [phases.setup]
-nixPkgs = ["python3", "chromium", "chromiumDriver"]
+nixPkgs = ["python3", "chromium", "chromedriver"]
 
 [phases.install]
 commands = ["pip install -r requirements.txt"]
