@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ['...', 'chromium', 'chromedriver']
+
+[phases.install]
+dependsOn = ['setup']
+
+[phases.build]
+dependsOn = ['install']
+
+[start]
+cmd = 'python app.py'
